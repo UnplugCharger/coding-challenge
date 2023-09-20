@@ -60,6 +60,18 @@ func parseArgs(args []string) (config, error) {
 			c.filePath = arg
 		}
 	}
+	if c.filePath == "" {
+		return c, errors.New("filename not provided")
+	}
+
+	if !c.lineCount && !c.characterCount && !c.byteCount && !c.wordCount {
+		// Default Behaviour
+		c.wordCount = true
+		c.lineCount = true
+		c.characterCount = true
+		c.byteCount = true
+
+	}
 
 	// Ensure the help flag isn't used alongside other flags
 	if c.printUsage && (c.byteCount || c.lineCount || c.wordCount) {
