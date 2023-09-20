@@ -8,36 +8,31 @@ import (
 	"strings"
 )
 
-// byteCount
-
-// charCount
-
-// lineCount
-
-//  wordCount
-
 type config struct {
-	filePath   string
-	printUsage bool
-	byteCount  bool
-	charCount  bool
-	lineCount  bool
-	wordCount  bool
+	filePath       string
+	printUsage     bool
+	byteCount      bool
+	lineCount      bool
+	wordCount      bool
+	characterCount bool
 }
 
-var usageString = fmt.Sprintf(`Usage: %s <integer> [-h|--help]
-A greeter application which prints the name you entered <integer> number
-of times.
-`, os.Args[0])
+// Construct the usage string for the command.
+var usageString = fmt.Sprintf(`Usage: %s <filename> [-b] [-h|--help]
+A simple tool resembling 'wc' in functionality.
+  -b       Count bytes in the given file.
+  -h, --help  Display this help and exit.
+
+Example: 
+%s test.txt -b
+`, os.Args[0], os.Args[0])
 
 func printUsage(w io.Writer) {
 	fmt.Fprintf(w, usageString)
 }
 
+// parseArgs interprets command-line arguments.
 func parseArgs(args []string) (config, error) {
-
-	var err error
-
 	c := config{}
 
 	if len(args) == 0 {
@@ -48,65 +43,72 @@ func parseArgs(args []string) (config, error) {
 		switch arg {
 		case "-h", "--help":
 			c.printUsage = true
-		case "-b":
-			c.byteCount = true
+			return c, nil
 		case "-c":
-			c.charCount = true
+			c.byteCount = true
 		case "-l":
 			c.lineCount = true
 		case "-w":
 			c.wordCount = true
+
+		case "-m":
+			c.characterCount = true
 		default:
-			if c.filePath != "" { // If filePath is already set, then there's an issue
+			if c.filePath != "" {
 				return c, errors.New("multiple filenames provided or unrecognized argument: " + arg)
 			}
 			c.filePath = arg
-			fmt.Println("--------->", c.filePath)
 		}
-
 	}
-	if c.printUsage && (c.byteCount || c.charCount || c.lineCount || c.wordCount) {
+
+	// Ensure the help flag isn't used alongside other flags
+	if c.printUsage && (c.byteCount || c.lineCount || c.wordCount) {
 		return c, errors.New("cannot mix --help with other flags")
 	}
 
-	return c, err
+	return c, nil
 }
+
+// runCmd handles the logic of counting bytes, words, etc.
 func runCmd(r io.Reader, w io.Writer, c config) error {
 	if c.printUsage {
 		printUsage(w)
 		return nil
 	}
 
+	// Determine if reading from file or stdin
 	var content []byte
 	var err error
-
 	if c.filePath != "" {
 		content, err = os.ReadFile(c.filePath)
 		if err != nil {
-			fmt.Println("Error reading file:", err)
-			return errors.New("Error reading file ")
+			return fmt.Errorf("error reading file: %v", err)
 		}
 	} else {
-		// Reading from standard input
 		content, err = io.ReadAll(r)
 		if err != nil {
-			fmt.Println("Error reading from stdin:", err)
-			return errors.New("error reading from stdin")
+			return fmt.Errorf("error reading from stdin: %v", err)
 		}
 	}
 
+	// Execute desired counts
 	if c.lineCount {
-		lines := strings.Count(string(content), "\n")
-		fmt.Println(lines)
+		fmt.Println(strings.Count(string(content), "\n"), c.filePath)
 	}
-
 	if c.byteCount {
-		fmt.Println(len(content))
+		fmt.Println(len(content), c.filePath)
 	}
-
 	if c.wordCount {
-		words := strings.Fields(string(content))
-		fmt.Println(len(words))
+		fmt.Println(len(strings.Fields(string(content))), c.filePath)
+	}
+	if c.characterCount {
+		str := string(content)
+		runeCount := 0
+
+		for range str {
+			runeCount++
+		}
+		fmt.Println(runeCount, c.filePath)
 	}
 
 	return nil
@@ -115,12 +117,12 @@ func runCmd(r io.Reader, w io.Writer, c config) error {
 func main() {
 	c, err := parseArgs(os.Args[1:])
 	if err != nil {
-		fmt.Fprintln(os.Stdout, err)
+		_, _ = fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 
-	err = runCmd(os.Stdin, os.Stdout, c)
-	if err != nil {
-		fmt.Fprintln(os.Stdout, err)
+	if err := runCmd(os.Stdin, os.Stdout, c); err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
