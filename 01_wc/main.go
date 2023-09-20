@@ -60,9 +60,6 @@ func parseArgs(args []string) (config, error) {
 			c.filePath = arg
 		}
 	}
-	if c.filePath == "" {
-		return c, errors.New("filename not provided")
-	}
 
 	if !c.lineCount && !c.characterCount && !c.byteCount && !c.wordCount {
 		// Default Behaviour
